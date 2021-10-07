@@ -12,5 +12,4 @@ public class WebsocketsMsbrokerExampleApplicationTests {
 	@Test
 	public void contextLoads() {
 	}
-
 }
