@@ -9,14 +9,15 @@ var app = (function () {
     
     var stompClient = null;
 
-    var addPointToCanvas = function (point) {        
+    var addPointToCanvas = function (point) {
+        console.log("POINT: "+point);
+        console.log("  x: "+point.x);
         var canvas = document.getElementById("canvas");
         var ctx = canvas.getContext("2d");
         ctx.beginPath();
-        ctx.arc(point.x, point.y, 3, 0, 2 * Math.PI);
+        ctx.arc(point.x, point.y, 1, 0, 2 * Math.PI);
         ctx.stroke();
     };
-    
     
     var getMousePosition = function (evt) {
         canvas = document.getElementById("canvas");
@@ -27,7 +28,6 @@ var app = (function () {
         };
     };
 
-
     var connectAndSubscribe = function () {
         console.info('Connecting to WS...');
         var socket = new SockJS('/stompendpoint');
@@ -37,30 +37,53 @@ var app = (function () {
         stompClient.connect({}, function (frame) {
             console.log('Connected: ' + frame);
             stompClient.subscribe('/topic/newpoint', function(eventbody) {
-                console.log("----- QUE RAIOS >:v SÍ LLEGA ACÁ -----");
                 var theObject = JSON.parse(eventbody.body);
+                addPointToCanvas(theObject);
                 alert("EV: "+eventbody.body);
             });
         });
+    };
 
+    var publishPoint = function(px, py) {
+        var pt = new Point(px,py);
+        console.info("publishing point at "+pt);
+        stompClient.send("/topic/newpoint", {}, JSON.stringify(pt));
+    };
+
+    var _initDrawPointEvent = function() {
+        var canvas = document.getElementById("canvas");
+        if (window.PointerEvent) {
+            canvas.addEventListener(
+                "pointerdown",
+                function(event){
+                    let pos = getMousePosition(event);
+                    publishPoint(pos.x, pos.y);
+                },
+                false
+            );
+        }
+        else {
+            canvas.addEventListener(
+                "mousedown",
+                function(event){
+                    let pos = getMousePosition(event);
+                    publishPoint(pos.x, pos.y);
+                },
+                false
+            );
+        }
     };
     
-    return {
 
+    return {
         init: function () {
+            _initDrawPointEvent();
             var can = document.getElementById("canvas");
-            
             //websocket connection
             connectAndSubscribe();
         },
 
-        publishPoint: function(px,py){
-            var pt=new Point(px,py);
-            console.info("publishing point at "+pt);
-            addPointToCanvas(pt);
-
-            stompClient.send("/topic/newpoint", {}, JSON.stringify(pt));
-        },
+        publishPoint: publishPoint,
 
         disconnect: function () {
             if (stompClient !== null) {
