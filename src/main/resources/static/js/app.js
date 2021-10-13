@@ -8,7 +8,7 @@ var app = (function () {
     }
     
     var stompClient = null;
-    var _drawID = null;
+    var _drawID = "";
 
     var addPointToCanvas = function (point) {
         console.log("POINT: "+point);
@@ -18,6 +18,22 @@ var app = (function () {
         ctx.beginPath();
         ctx.arc(point.x, point.y, 1, 0, 2 * Math.PI);
         ctx.stroke();
+    };
+
+    var drawPolygon = function(points) {
+        console.log(" -- In Draw Polygon --");
+        var canvas = document.getElementById("canvas");
+        var ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#00FFAA";
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (var i = 1; i < points.length; i++) {
+            ctx.lineTo(points[i].x, points[i].y);
+        }
+        ctx.lineTo(points[0].x, points[0].y);
+        ctx.stroke();
+        ctx.closePath();
+        ctx.fill();
     };
     
     var getMousePosition = function (evt) {
@@ -37,11 +53,19 @@ var app = (function () {
         //subscribe to /topic/newpoint when connections succeed
         stompClient.connect({}, function (frame) {
             console.log('Connected: ' + frame);
+            // Points
             stompClient.subscribe('/topic/newpoint.'+_drawID, function(eventbody) {
                 console.log("  ---- After Send ----");
                 var theObject = JSON.parse(eventbody.body);
                 addPointToCanvas(theObject);
-                alert("EV: "+eventbody.body);
+                //alert("EV: "+eventbody.body);
+            });
+            // Polygons
+            stompClient.subscribe("/topic/newpolygon."+_drawID, function(eventbody) {
+                console.log("  ---- A NEW POLYGON HAS ARRIVED ----");
+                var points = JSON.parse(eventbody.body);
+                console.log("  First Point: ("+points[0].x+", "+points[0].y+")");
+                drawPolygon(points);
             });
         });
     };
@@ -49,7 +73,7 @@ var app = (function () {
     var publishPoint = function(px, py) {
         var pt = new Point(px,py);
         console.info("publishing point at "+pt);
-        stompClient.send("/topic/newpoint."+_drawID, {}, JSON.stringify(pt));
+        stompClient.send("/app/newpoint."+_drawID, {}, JSON.stringify(pt));
     };
 
     var _initDrawPointEvent = function() {
